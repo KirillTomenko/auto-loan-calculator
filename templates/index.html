@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кредитный калькулятор для автомобиля</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Кредитный калькулятор для автомобиля</h1>
+        </header>
+
+        <div class="main-content">
+            <!-- Левая панель: Входные параметры -->
+            <aside class="input-panel">
+                <section class="card">
+                    <h2>Входные параметры</h2>
+                    
+                    <div class="form-group">
+                        <label for="principal">Стоимость автомобиля (руб.)</label>
+                        <input type="text" id="principal" class="form-input" placeholder="1 000 000" autocomplete="off">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="downPayment">Первоначальный взнос (руб.)</label>
+                        <input type="text" id="downPayment" class="form-input" placeholder="200 000" autocomplete="off">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="term">Срок кредита</label>
+                        <div class="term-input-group">
+                            <input type="number" id="term" class="form-input" min="1" value="36">
+                            <div class="term-toggle">
+                                <button type="button" class="toggle-btn active" data-unit="months">Месяцев</button>
+                                <button type="button" class="toggle-btn" data-unit="years">Лет</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="rateGroup">
+                        <label for="rate">Процентная ставка (% годовых)</label>
+                        <input type="number" id="rate" class="form-input" step="0.1" min="0" max="100" value="12" placeholder="12.0">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="startDate">Дата получения кредита</label>
+                        <input type="date" id="startDate" class="form-input">
+                    </div>
+
+                    <div class="form-group">
+                        <button type="button" id="installmentToggle" class="btn-toggle">
+                            <span class="toggle-icon">✓</span>
+                            <span>Рассрочка (0%)</span>
+                        </button>
+                    </div>
+
+                    <div class="form-group">
+                        <button type="button" id="calculateBtn" class="btn-primary">Рассчитать</button>
+                    </div>
+                </section>
+
+                <!-- Блок досрочных платежей -->
+                <section class="card">
+                    <h2>Досрочные платежи</h2>
+                    <button type="button" id="addEarlyPaymentBtn" class="btn-secondary">+ Добавить</button>
+                    
+                    <div id="earlyPaymentsList" class="early-payments-list">
+                        <!-- Досрочные платежи будут добавляться динамически -->
+                    </div>
+                </section>
+            </aside>
+
+            <!-- Правая панель: Результаты и график -->
+            <main class="results-panel">
+                <!-- Блок результатов расчётов -->
+                <section class="card results-card">
+                    <h2>Результаты расчётов</h2>
+                    <div class="results-grid">
+                        <div class="result-item">
+                            <span class="result-label">Сумма кредита:</span>
+                            <span class="result-value" id="resultPrincipal">—</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Ежемесячный платёж:</span>
+                            <span class="result-value" id="resultMonthlyPayment">—</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Общая переплата:</span>
+                            <span class="result-value" id="resultTotalInterest">—</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Необходимый доход:</span>
+                            <span class="result-value" id="resultRequiredIncome">—</span>
+                        </div>
+                        <div class="result-item">
+                            <span class="result-label">Итого к выплате:</span>
+                            <span class="result-value" id="resultTotalAmount">—</span>
+                        </div>
+                        <div class="result-item" id="savingsItem" style="display: none;">
+                            <span class="result-label">Экономия:</span>
+                            <span class="result-value savings" id="resultSavings">—</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- График платежей -->
+                <section class="card">
+                    <h2>График платежей</h2>
+                    
+                    <!-- Диаграмма -->
+                    <div class="chart-container">
+                        <canvas id="paymentChart"></canvas>
+                    </div>
+
+                    <!-- Таблица платежей -->
+                    <div class="table-container">
+                        <table id="paymentTable" class="payment-table">
+                            <thead>
+                                <tr>
+                                    <th>№</th>
+                                    <th>Дата платежа</th>
+                                    <th>Ежемесячный платёж</th>
+                                    <th>Досрочный платёж</th>
+                                    <th>Основной долг</th>
+                                    <th>Проценты</th>
+                                    <th>Остаток долга</th>
+                                </tr>
+                            </thead>
+                            <tbody id="paymentTableBody">
+                                <tr>
+                                    <td colspan="7" class="empty-message">Введите параметры и нажмите "Рассчитать"</td>
+                                </tr>
+                            </tbody>
+                            <tfoot id="paymentTableFoot" style="display: none;">
+                                <tr class="total-row">
+                                    <td colspan="2"><strong>ИТОГО</strong></td>
+                                    <td id="totalMonthlyPayment">0</td>
+                                    <td id="totalEarlyPayment">0</td>
+                                    <td id="totalPrincipalPaid">0</td>
+                                    <td id="totalInterestPaid">0</td>
+                                    <td>0</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <div class="export-container">
+                        <button type="button" id="exportBtn" class="btn-primary" disabled>
+                            ⬇ Скачать таблицу в Excel
+                        </button>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Модальное окно для добавления досрочного платежа -->
+    <div id="earlyPaymentModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="modal-close">&times;</span>
+            <h3>Добавить досрочный платёж</h3>
+            <div class="form-group">
+                <label for="earlyMonth">Месяц:</label>
+                <select id="earlyMonth" class="form-input"></select>
+            </div>
+            <div class="form-group">
+                <label for="earlyAmount">Сумма (руб.):</label>
+                <input type="text" id="earlyAmount" class="form-input" placeholder="50 000">
+            </div>
+            <div class="form-group">
+                <label>Режим:</label>
+                <div class="mode-toggle">
+                    <button type="button" class="toggle-btn active" data-mode="reduce_payment">Уменьшить платёж</button>
+                    <button type="button" class="toggle-btn" data-mode="reduce_term">Уменьшить срок</button>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="saveEarlyPaymentBtn" class="btn-primary">Сохранить</button>
+                <button type="button" id="cancelEarlyPaymentBtn" class="btn-secondary">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/formatting.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/calculator.js') }}"></script>
+</body>
+</html>
